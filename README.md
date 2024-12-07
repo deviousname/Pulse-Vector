@@ -5,4 +5,4 @@
 Run main.py
 
 Controls: WASD, QE, Spacebar, Mouse Wheel.
-Click star to lock on, click empty space to untarget.
+Click star to lock on, click empty space to deselect.
