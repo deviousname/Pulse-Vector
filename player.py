@@ -18,7 +18,7 @@ class Player:
         self.space_active = False  # Tracks if space is being held
 
     def handle_input(self, delta_time):
-        """Handles player input from the keyboard"""
+        """Handles player input from the keyboard."""
         keys_pressed = pygame.key.get_pressed()
         depth_change = 0.0
 
@@ -34,9 +34,11 @@ class Player:
         self.space_active = keys_pressed[pygame.K_SPACE]
 
         # Determine movement direction
-        current_direction = get_direction(keys_pressed, BASE_DIRECTION_MAP) or self.last_direction
+        current_direction = get_direction(keys_pressed, BASE_DIRECTION_MAP)
+
+        # Update last known direction if moving
         if current_direction:
-            self.last_direction = current_direction  # Update last known direction if player is moving
+            self.last_direction = current_direction
 
         # Calculate player acceleration
         acceleration = Vector2(
@@ -70,7 +72,6 @@ class Player:
             self.position.x = WIDTH - self.position.x
 
         # **Update Player Direction**
-        # Check for player scroll activity
         if not self.scroll_active and not self.wasd_active:
             # No scroll input and no movement input, return to middle state
             self.scroll_mode = "middle"
@@ -78,11 +79,11 @@ class Player:
             # No scroll input, but player is moving, keep the current position
             pass
 
-        # Set the final direction based on last movement and current scroll mode
-        if self.scroll_mode:
-            self.direction = f"{current_direction}_{self.scroll_mode}" if current_direction else f"{self.last_direction}_{self.scroll_mode}"
-        else:
+        # Set the final direction based on movement and scroll mode
+        if self.scroll_mode == "middle":
             self.direction = current_direction or self.last_direction
+        else:
+            self.direction = f"{current_direction or self.last_direction}_{self.scroll_mode}"
 
         # If no WASD movement, maintain last known direction
         if not self.wasd_active:
