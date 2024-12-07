@@ -1,5 +1,5 @@
 # Pulse-Vector
-2,5-D parallax top down space shooter
+2.5-D parallax top down space shooter
 
 
 Run main.py
