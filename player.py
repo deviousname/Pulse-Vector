@@ -5,17 +5,43 @@ from utils import *
 
 class Player:
     def __init__(self):
-        self.position = Vector2(WIDTH // 2, HEIGHT // 2)  # Initialize player position at screen center
+        self.position = Vector2(WIDTH // 2, HEIGHT // 2)
         self.velocity = Vector2()
         self.depth = 1.0
-        self.direction = "up"
         self.last_direction = "up"
-        self.scroll_mode = "middle"  # Possible values: "inward", "middle", "outward"
+
         self.scroll_states = ["inward", "middle", "outward"]
         self.wheel = 0
         self.wasd_active = False  # Tracks if any of the WASD keys are pressed
         self.scroll_active = False  # Tracks if the mouse scroll was recently used
         self.space_active = False  # Tracks if space is being held
+
+        self.direction = "up"  # This should now always be accurate
+        self.scroll_mode = "middle"
+        self.boost_velocity = Vector2(0, 0)
+        self.boost_decay_rate = 0.995  # Decay slower to allow boost to last
+        self.boost_duration = 0.0
+        self.max_boost_duration = 0.5  # Seconds of boost
+
+    def handle_target_release(self, target_star, orbital_velocity):
+        if target_star is None:
+            return
+
+        boost_direction = DIRECTION_VECTORS.get(self.direction, Vector2(0, -1))  # Use ship's facing direction
+        boost_direction = Vector2(boost_direction).normalize()  # Normalize the vector
+
+        MAX_BOOST_SPEED = 500
+        relative_speed = target_star.relative_velocity.length()
+        boost_magnitude = min(relative_speed * 2.0, MAX_BOOST_SPEED)
+        self.boost_velocity = boost_direction * boost_magnitude
+        self.boost_duration = self.max_boost_duration
+
+    def update_boost(self, delta_time):
+        if self.boost_duration > 0:
+            self.boost_duration -= delta_time
+            self.boost_velocity *= self.boost_decay_rate
+            return self.velocity + self.boost_velocity
+        return self.velocity
 
     def handle_input(self, delta_time):
         """Handles player input from the keyboard."""
