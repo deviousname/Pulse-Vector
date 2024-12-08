@@ -66,10 +66,11 @@ class Game:
                         self.target_star = None
 
                 elif event.type == pygame.MOUSEWHEEL:
-                    self.player.handle_wheel(event.y)
+                    self.player.handle_wheel(event.y, self.target_star)  # Pass target_star to handle_wheel
+
 
             # Handle player input
-            depth_change = self.player.handle_input(delta_time)
+            depth_change = self.player.handle_input(delta_time, self.target_star)
 
             # Fire bullets if space is held and 0.5 seconds have passed since last shot
             self.handle_continuous_fire()
@@ -168,7 +169,7 @@ class Game:
             return 0.0
             
         # Slow down time while targeting for more controlled orbiting
-        delta_time = delta_time / 2
+        delta_time = delta_time / 1
         
         # Calculate displacement from screen center to target
         center = Vector2(WIDTH / 2, HEIGHT / 2)
