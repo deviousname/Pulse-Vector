@@ -2,21 +2,21 @@ import random
 import pygame
 from pygame.math import Vector2
 from constants import WIDTH, HEIGHT, MIN_DEPTH, MAX_DEPTH, STAR_COLOR
-from utils import wrap_depth
-
 
 class Star:
     def __init__(self, x, y, depth):
         """Initialize a star with position (x, y) and depth."""
         self.position = Vector2(x, y)
+        self.velocity = Vector2(random.uniform(-50, 50), random.uniform(-50, 50))  # Random movement
         self.depth = depth
-        self.size = random.randint(1, 3)  # Random size of the star
+        self.size = random.randint(1, 3)
+        self.relative_velocity = Vector2(0, 0)  # Velocity relative to player
 
-    def update(self, velocity, depth_change, delta_time, is_target=False):
+    def update(self, player_velocity, depth_change, delta_time, is_target=False):
         """
-        Update the star's position and depth, and handle wrapping for both 2D and depth.
+        Update the star's position and depth, and calculate relative velocity to the player.
         Args:
-            velocity (Vector2): The player's velocity.
+            player_velocity (Vector2): The player's velocity.
             depth_change (float): The change in depth.
             delta_time (float): The delta time between frames.
             is_target (bool): Whether this star is the target.
@@ -41,8 +41,11 @@ class Star:
 
         # **Parallax Effect Based on Depth**
         parallax_factor = 1.0 / max(self.depth, MIN_DEPTH)
-        self.position.x -= velocity.x * parallax_factor * delta_time
-        self.position.y -= velocity.y * parallax_factor * delta_time
+        self.position.x -= player_velocity.x * parallax_factor * delta_time
+        self.position.y -= player_velocity.y * parallax_factor * delta_time
+
+        # **Relative Velocity Calculation**
+        self.relative_velocity = self.velocity - player_velocity
 
         # **2D Wrapping with Inversion Logic**
         # Handle horizontal wrapping
