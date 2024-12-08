@@ -12,6 +12,7 @@ from spaceship import SPACESHIP_SHAPES, PIXEL_SIZE, draw_spaceship
 class Game:
     def __init__(self):
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN if FULLSCREEN else 0)
+        pygame.init()
         pygame.display.set_caption("Parallax Universe Simulator")
         self.clock = pygame.time.Clock()
         self.running = True
@@ -26,7 +27,7 @@ class Game:
         self.target_star = None
         self.bullets = []
         self.last_shot_time = 0  # Track the last time a bullet was fired
-        self.fire_delay = 500  # Time (ms) between shots
+        self.fire_delay = 250  # Time (ms) between shots
 
         pygame.event.set_allowed([
             pygame.QUIT,
@@ -35,7 +36,9 @@ class Game:
             pygame.MOUSEBUTTONDOWN,
             pygame.MOUSEWHEEL
         ])
-
+        self.current_orbital_velocity = 0.0
+        self.current_orbital_direction = Vector2(0, -1)  # Default up
+        
     def run(self):
         while self.running:
             delta_time = self.clock.tick(60) / 1000.0  # Time since last frame in seconds
@@ -44,12 +47,24 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.running = False
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    self.target_star = next(
+                    clicked_position = Vector2(event.pos)
+                    
+                    # Check if a star was clicked
+                    clicked_star = next(
                         (
                             star for star in reversed(self.stars)
-                            if (star.position - Vector2(event.pos)).length() <= max(1, int(star.size / star.depth))
+                            if (star.position - clicked_position).length() <= max(1, int(star.size / star.depth))
                         ), None
-                )
+                    )
+                    
+                    if clicked_star:
+                        # Target the clicked star
+                        self.target_star = clicked_star
+                    elif self.target_star:
+                        # Untarget the current star if clicking empty space
+                        self.player.handle_target_release(self.target_star, self.current_orbital_velocity)
+                        self.target_star = None
+
                 elif event.type == pygame.MOUSEWHEEL:
                     self.player.handle_wheel(event.y)
 
@@ -63,9 +78,12 @@ class Game:
                 depth_change += self.center_zoom(delta_time)
             else:
                 self.center_zoom(delta_time)
-
+                
+            base_velocity = self.player.handle_input(delta_time)
+            boosted_velocity = self.player.update_boost(delta_time)
+            
             for star in self.stars:
-                star.update(self.player.velocity, depth_change, delta_time, star is self.target_star)
+                star.update(boosted_velocity , depth_change, delta_time, star is self.target_star)
 
             # Sort bullets by depth to draw them in correct order
             self.bullets.sort(key=lambda b: b.depth, reverse=True)
@@ -107,7 +125,7 @@ class Game:
             pygame.display.flip()
 
     def handle_continuous_fire(self):
-        """Fires a bullet every 0.5 seconds if the spacebar is held"""
+        """Fires a bullet every x seconds if the spacebar is held"""
         keys_pressed = pygame.key.get_pressed()
         current_time = pygame.time.get_ticks()
         
@@ -131,18 +149,50 @@ class Game:
         bullet = Bullet(bullet_position, direction, self.player.depth, spaceship_width, spaceship_height)
         self.bullets.append(bullet)
 
-
     def center_zoom(self, delta_time):
+        """
+        Manages the camera's zoom and orbital behavior when targeting a star.
+        
+        This method handles:
+        1. Star-centered camera movement
+        2. Depth adjustment for zoom effects
+        3. Orbital velocity calculations for slingshot mechanics
+        
+        Args:
+            delta_time (float): Time elapsed since last frame in seconds
+            
+        Returns:
+            float: The calculated depth change for this frame
+        """
         if not self.target_star:
             return 0.0
+            
+        # Slow down time while targeting for more controlled orbiting
+        delta_time = delta_time / 2
+        
+        # Calculate displacement from screen center to target
         center = Vector2(WIDTH / 2, HEIGHT / 2)
-        displacement = (center - self.target_star.position) * delta_time
+        displacement = (center - self.target_star.position)
+        
+        # Calculate orbital properties
+        orbital_velocity = displacement.length() / delta_time
+        orbital_direction = displacement.normalize()
+        
+        # Store orbital data for potential slingshot
+        self.current_orbital_velocity = orbital_velocity
+        self.current_orbital_direction = orbital_direction
+        
+        # Apply displacement to maintain orbit
         for star in self.stars:
-            star.position += displacement
-        for bullet in self.bullets:
-            bullet.position += displacement
-        depth_delta = (MIN_DEPTH - self.target_star.depth) * delta_time
-        if (self.target_star.depth <= MIN_DEPTH and depth_delta < 0) or \
-           (self.target_star.depth >= MAX_DEPTH and depth_delta > 0):
-            return 0.0
-        return depth_delta
+            star.position += displacement * delta_time
+        
+        # Calculate depth change for zoom effect
+        target_depth = MIN_DEPTH  # We zoom in towards minimum depth
+        current_depth = self.target_star.depth
+        depth_delta = (target_depth - current_depth) * delta_time
+        
+        # Ensure depth stays within valid range
+        if MIN_DEPTH <= current_depth + depth_delta <= MAX_DEPTH:
+            return depth_delta
+            
+        return 0.0
